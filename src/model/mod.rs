@@ -1,7 +1,6 @@
 pub mod file;
 pub mod task;
 
-use file::FileLoadHandler;
 use task::{Task, TaskCategory};
 
 use lazy_static::lazy_static;
@@ -11,11 +10,17 @@ pub struct TaskManager {
     tasks: HashMap<TaskCategory, Vec<Task>>,
 }
 
+pub enum LoadSource {
+    FilesDirectoryPath(String),
+    Database(String),
+}
+
 pub struct LoadOptions {
     load_cancelled: bool,
     load_expired: bool,
     load_completed: bool,
     load_deleted: bool,
+    load_source: LoadSource,
 }
 
 impl LoadOptions {
@@ -44,17 +49,38 @@ impl Default for LoadOptions {
             load_expired: Default::default(),
             load_completed: Default::default(),
             load_deleted: Default::default(),
+            load_source: LoadSource::FilesDirectoryPath(".".into()),
         }
     }
 }
 
-pub enum LoadResult<'a> {
-    Success(&'a dyn LoadHandler),
-    Failure(String),
+pub struct LoadResults {
+    active: Option<u32>,
+    cancelled: Option<u32>,
+    expired: Option<u32>,
+    completed: Option<u32>,
+    deleted: Option<u32>,
+    tasks: HashMap<TaskCategory, Vec<Task>>,
+}
+
+impl LoadResults {
+    pub fn new() -> Self {
+        LoadResults {
+            active: None,
+            cancelled: None,
+            expired: None,
+            completed: None,
+            deleted: None,
+            tasks: HashMap::new(),
+        }
+    }
 }
 
 pub trait LoadHandler {
-    fn load_tasks(options: LoadOptions) -> Result<Self, String>;
+    fn new(options: LoadOptions) -> Result<Self, String>
+    where
+        Self: Sized;
+    fn load_tasks(&self) -> Result<LoadResults, String>;
 }
 
 impl TaskManager {
@@ -68,10 +94,5 @@ impl TaskManager {
             static ref INSTANCE: Mutex<TaskManager> = Mutex::new(TaskManager::new());
         }
         &INSTANCE
-    }
-}
-impl Default for LoadHandler {
-    fn default() -> Self {
-        FileLoadHandler::load_tasks(LoadOptions::default())
     }
 }

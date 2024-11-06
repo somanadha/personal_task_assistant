@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use std::convert::{From, Into};
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -37,6 +38,17 @@ impl Task {
             status: TaskStutus::Active,
             notes: notes,
         }
+    }
+
+    pub fn from(one_task_st: &str) -> Self {
+        Task::new(
+            TaskCategory::Personal,
+            "String".to_string(),
+            "String".to_string(),
+            Local::now(),
+            TaskPriority::Medium,
+            String::from(""),
+        )
     }
 
     pub fn id(&self) -> &Uuid {
