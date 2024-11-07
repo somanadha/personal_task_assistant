@@ -1,15 +1,21 @@
 use chrono::prelude::*;
-use std::convert::{From, Into};
+use std::convert::TryFrom;
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+pub trait EnumValues {
+    fn values() -> Vec<Self>
+    where
+        Self: Sized;
+}
+
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub enum TaskPriority {
     Low,
     Medium,
     High,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub enum TaskStutus {
     Active,
     Cancelled,
@@ -18,7 +24,7 @@ pub enum TaskStutus {
     Expired,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
 pub enum TaskCategory {
     Work,
     Personal,
@@ -60,6 +66,12 @@ impl Default for TaskPriority {
     }
 }
 
+impl EnumValues for TaskPriority {
+    fn values() -> Vec<Self> {
+        vec![TaskPriority::Low, TaskPriority::Medium, TaskPriority::High]
+    }
+}
+
 impl TryFrom<&str> for TaskStutus {
     type Error = String;
     fn try_from(value: &str) -> Result<TaskStutus, String> {
@@ -77,6 +89,18 @@ impl TryFrom<&str> for TaskStutus {
 impl Default for TaskStutus {
     fn default() -> Self {
         TaskStutus::Active
+    }
+}
+
+impl EnumValues for TaskStutus {
+    fn values() -> Vec<Self> {
+        vec![
+            TaskStutus::Active,
+            TaskStutus::Cancelled,
+            TaskStutus::Completed,
+            TaskStutus::Deleted,
+            TaskStutus::Expired,
+        ]
     }
 }
 
@@ -99,6 +123,15 @@ impl Default for TaskCategory {
     }
 }
 
+impl EnumValues for TaskCategory {
+    fn values() -> Vec<Self> {
+        vec![
+            TaskCategory::Work,
+            TaskCategory::Personal,
+            TaskCategory::Health,
+        ]
+    }
+}
 impl Task {
     pub fn new(
         category: TaskCategory,
@@ -122,6 +155,30 @@ impl Task {
 
     pub fn id(&self) -> &Uuid {
         &self.uuid
+    }
+
+    pub fn category(&self) -> TaskCategory {
+        self.category
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    pub fn deadline(&self) -> &DateTime<Local> {
+        &self.deadline
+    }
+
+    pub fn priority(&self) -> TaskPriority {
+        self.priority
+    }
+
+    pub fn notes(&self) -> &str {
+        &self.notes
+    }
+
+    pub fn status(&self) -> TaskStutus {
+        self.status
     }
 
     pub fn modify(&self, title: &str) -> Result<TaskOpResult, String> {
