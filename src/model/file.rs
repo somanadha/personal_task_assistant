@@ -57,19 +57,18 @@ impl FileLoadHandler {
     }
 
     fn load_tasks_from_a_single_file(file_name: &str) -> Result<Vec<Task>, String> {
-        fn error_out(param: Error) -> Result<String, String> {
-            Err(param.to_string())
-        }
-
-        match fs::read_to_string(file_name).or_else(error_out) {
+        match fs::read_to_string(file_name) {
             Ok(task_data_string) => {
-                let task_vector: Vec<Task> = task_data_string
+                let task_vector = task_data_string
                     .lines()
-                    .map(|one_line| Task::from(one_line))
+                    .filter_map(|one_line| match Task::try_from(one_line) {
+                        Ok(task) => Some(task),
+                        Err(error) => None // This needs to be logged,
+                    })
                     .collect();
                 Ok(task_vector)
             }
-            Err(error) => Err(error),
+            Err(error) => Err(error.to_string()),
         }
     }
 }
