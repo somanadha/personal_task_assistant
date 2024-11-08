@@ -1,14 +1,20 @@
-pub mod file;
+mod file;
 pub mod task;
 
 use file::FileLoadHandler;
 use task::{Task, TaskCategory};
 
 use lazy_static::lazy_static;
-use std::{collections::HashMap,  sync::Mutex};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    sync::{Arc, Mutex},
+};
+use uuid::Uuid;
 
 pub struct TaskManager {
-    tasks: Option<HashMap<TaskCategory, Vec<Task>>>,
+    tasks: Option<HashMap<TaskCategory, HashMap<Uuid, Task>>>,
+    handler: Option<Arc<Mutex<dyn LoadHandler + Send>>>,
 }
 
 pub enum LoadSource {
@@ -28,6 +34,15 @@ impl LoadOptions {
     }
 }
 
+impl Display for LoadSource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadSource::FilesDirectoryPath(path) => write!(f, "Files Directory Path: {}", path),
+            LoadSource::Database(db) => write!(f, "Database: {}", db),
+        }
+    }
+}
+
 impl Default for LoadOptions {
     fn default() -> Self {
         Self {
@@ -36,24 +51,29 @@ impl Default for LoadOptions {
     }
 }
 
-pub struct LoadResults {
-    tasks: HashMap<TaskCategory, Vec<Task>>,
+struct LoadResults {
+    tasks: HashMap<TaskCategory, HashMap<Uuid, Task>>,
 }
 
 impl LoadResults {
-    pub fn new(tasks: HashMap<TaskCategory, Vec<Task>>) -> Self {
+    pub fn new(tasks: HashMap<TaskCategory, HashMap<Uuid, Task>>) -> Self {
         LoadResults { tasks: tasks }
     }
 }
 
-pub trait LoadHandler {
+trait LoadHandler {
     fn load_tasks(&self) -> Result<LoadResults, String>;
+    fn save_tasks(&self, tasks: &[Task]) -> Result<(), String>;
 }
 
 impl TaskManager {
     fn new() -> Self {
-        TaskManager { tasks: None }
+        TaskManager {
+            tasks: None,
+            handler: None,
+        }
     }
+
     pub fn get_instance() -> &'static Mutex<TaskManager> {
         lazy_static! {
             static ref INSTANCE: Mutex<TaskManager> = Mutex::new(TaskManager::new());
@@ -68,20 +88,23 @@ impl TaskManager {
                 match handler.load_tasks() {
                     Ok(results) => {
                         self.tasks = Some(results.tasks);
+                        self.handler = Some(Arc::new(Mutex::new(handler)));
                     }
                     Err(error) => return Err(error),
                 }
             }
-            value => return Err("{value} : Implementation Not Available".into()),
+            value => return Err(format!("{value} : Implementation Not Available")),
         }
         Ok(())
     }
 
-    pub fn add_task(mut self, task : Task) -> Result<(), String> {
-        if (self.tasks != None) {
-            self.tasks.unwrap().entry(task.category())
-            .or_insert_with(Vec::new)
-            .push(task);
+    pub fn add_task(mut self, task: Task) -> Result<(), String> {
+        if self.tasks != None {
+            self.tasks
+                .unwrap()
+                .entry(task.category())
+                .or_insert_with(HashMap::new)
+                .insert(task.uuid(), task);
         } else {
             return Err("Call TaskManager.load_tasks first before adding a task".into());
         }

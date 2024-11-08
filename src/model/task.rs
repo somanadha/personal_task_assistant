@@ -1,5 +1,5 @@
 use chrono::prelude::*;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, hash::Hash};
 use uuid::Uuid;
 
 pub trait EnumValues {
@@ -31,7 +31,7 @@ pub enum TaskCategory {
     Health,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Task {
     uuid: Uuid,
     title: String,
@@ -60,6 +60,15 @@ impl TryFrom<&str> for TaskPriority {
     }
 }
 
+impl Into<String> for TaskPriority {
+    fn into(self) -> String {
+        match self {
+            TaskPriority::Low => "Low".into(),
+            TaskPriority::Medium => "Medium".into(),
+            TaskPriority::High => "High".into(),
+        }
+    }
+}
 impl Default for TaskPriority {
     fn default() -> Self {
         TaskPriority::Medium
@@ -103,7 +112,17 @@ impl EnumValues for TaskStutus {
         ]
     }
 }
-
+impl Into<String> for TaskStutus {
+    fn into(self) -> String {
+        match self {
+            TaskStutus::Active => "Active".into(),
+            TaskStutus::Cancelled => "Cancelled".into(),
+            TaskStutus::Completed => "Completed".into(),
+            TaskStutus::Deleted => "Deleted".into(),
+            TaskStutus::Expired => "Expired".into(),
+        }
+    }
+}
 impl TryFrom<&str> for TaskCategory {
     type Error = String;
 
@@ -113,6 +132,16 @@ impl TryFrom<&str> for TaskCategory {
             "Personal" => Ok(TaskCategory::Personal),
             "Health" => Ok(TaskCategory::Health),
             _ => Err(format!("Unable to convert {value} to TaskCategory")),
+        }
+    }
+}
+
+impl Into<String> for TaskCategory {
+    fn into(self) -> String {
+        match self {
+            TaskCategory::Work => "Work".into(),
+            TaskCategory::Personal => "Personal".into(),
+            TaskCategory::Health => "Health".into(),
         }
     }
 }
@@ -153,8 +182,8 @@ impl Task {
         }
     }
 
-    pub fn id(&self) -> &Uuid {
-        &self.uuid
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
     }
 
     pub fn category(&self) -> TaskCategory {
@@ -268,6 +297,19 @@ impl Default for Task {
     }
 }
 
+impl Hash for Task {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.uuid.hash(state);
+        //     self.title.hash(state);
+        //     self.category.hash(state);
+        //     self.description.hash(state);
+        //     self.deadline.hash(state);
+        //     self.priority.hash(state);
+        //     self.notes.hash(state);
+        //     self.status.hash(state);
+    }
+}
+
 impl TryFrom<&str> for Task {
     type Error = Vec<String>;
     fn try_from(one_task_str: &str) -> Result<Task, Vec<String>> {
@@ -319,7 +361,6 @@ impl TryFrom<&str> for Task {
                         Err(error) => error_messages.push(error.to_string()),
                     }
                 }
-
                 _ => break,
             }
         }
@@ -328,6 +369,22 @@ impl TryFrom<&str> for Task {
         } else {
             Ok(task)
         }
+    }
+}
+
+impl Into<String> for Task {
+    fn into(self) -> String {
+        let task_as_string = format!(
+            "{}^^{}^^{}^^{}^^{}^^{}^^{}^^{}",
+            self.uuid,
+            self.title,
+            self.category.into(),
+            self.description,
+            self.deadline,
+            self.priority.into(),
+            self.notes,
+            self.status.into()
+        );
     }
 }
 
